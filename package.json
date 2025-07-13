@@ -1,0 +1,14 @@
+{
+  "name": "ping-pong-game",
+  "version": "1.0.0",
+  "description": "A modern HTML5 ping pong game with adjustable difficulty and sound effects",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve .",
+    "deploy": "npx wrangler deploy",
+    "preview": "npx wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.24.3"
+  }
+}
