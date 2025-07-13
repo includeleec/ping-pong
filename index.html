@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>乒乓球游戏</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>乒乓球游戏</h1>
+            <div class="score-board">
+                <div class="player-score">
+                    <span class="player-name">玩家</span>
+                    <span class="score" id="player-score">0</span>
+                </div>
+                <div class="ai-score">
+                    <span class="player-name">电脑</span>
+                    <span class="score" id="ai-score">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <canvas id="gameCanvas" width="800" height="400"></canvas>
+            <div class="game-controls">
+                <button id="startBtn" class="btn">开始游戏</button>
+                <button id="pauseBtn" class="btn">暂停</button>
+                <button id="resetBtn" class="btn">重置</button>
+            </div>
+        </div>
+        
+        <div class="difficulty-controls">
+            <h3>难度设置</h3>
+            <div class="control-group">
+                <label for="ballCount">球数量:</label>
+                <select id="ballCount">
+                    <option value="1">1个球</option>
+                    <option value="2">2个球</option>
+                    <option value="3">3个球</option>
+                    <option value="4">4个球</option>
+                    <option value="5">5个球</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="ballSpeed">球速度:</label>
+                <select id="ballSpeed">
+                    <option value="1">慢速</option>
+                    <option value="2" selected>中速</option>
+                    <option value="3">快速</option>
+                    <option value="4">极速</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="difficultyPreset">预设难度:</label>
+                <select id="difficultyPreset">
+                    <option value="easy">简单</option>
+                    <option value="medium" selected>中等</option>
+                    <option value="hard">困难</option>
+                    <option value="extreme">极限</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>游戏说明</h3>
+            <p>使用鼠标控制球拍，或按 ↑↓ 键移动</p>
+            <p>先得 10 分者获胜！</p>
+            <p>难度越高，球越多，速度越快！</p>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
