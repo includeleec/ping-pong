@@ -129,7 +129,10 @@ class PingPongGame {
         this.canvas.addEventListener('mousemove', (e) => {
             if (this.isTouch) return; // 触摸设备忽略鼠标
             const rect = this.canvas.getBoundingClientRect();
-            this.mouseY = e.clientY - rect.top;
+            
+            let mouseY = e.clientY - rect.top;
+            
+            this.mouseY = mouseY;
             if (this.gameRunning && !this.gamePaused) {
                 this.player.y = this.mouseY - this.player.height / 2;
                 this.player.y = Math.max(0, Math.min(this.canvas.height - this.player.height, this.player.y));
@@ -149,6 +152,8 @@ class PingPongGame {
         
         // 监听全屏变化
         document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
+        document.addEventListener('webkitfullscreenchange', () => this.handleFullscreenChange());
+        document.addEventListener('mozfullscreenchange', () => this.handleFullscreenChange());
     }
     
     setupTouchControls() {
@@ -158,7 +163,10 @@ class PingPongGame {
             
             const rect = this.canvas.getBoundingClientRect();
             const touch = e.touches[0] || e.changedTouches[0];
-            this.touchY = touch.clientY - rect.top;
+            
+            let touchY = touch.clientY - rect.top;
+            
+            this.touchY = touchY;
             this.player.y = this.touchY - this.player.height / 2;
             this.player.y = Math.max(0, Math.min(this.canvas.height - this.player.height, this.player.y));
             
@@ -384,11 +392,13 @@ class PingPongGame {
     toggleFullscreen() {
         const gameContainer = document.querySelector('.game-container');
         
-        if (!document.fullscreenElement) {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
             if (gameContainer.requestFullscreen) {
                 gameContainer.requestFullscreen();
             } else if (gameContainer.webkitRequestFullscreen) {
                 gameContainer.webkitRequestFullscreen();
+            } else if (gameContainer.mozRequestFullScreen) {
+                gameContainer.mozRequestFullScreen();
             } else if (gameContainer.msRequestFullscreen) {
                 gameContainer.msRequestFullscreen();
             }
@@ -397,6 +407,8 @@ class PingPongGame {
                 document.exitFullscreen();
             } else if (document.webkitExitFullscreen) {
                 document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
             } else if (document.msExitFullscreen) {
                 document.msExitFullscreen();
             }
@@ -404,7 +416,7 @@ class PingPongGame {
     }
     
     handleFullscreenChange() {
-        if (document.fullscreenElement) {
+        if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement) {
             this.fullscreenBtn.textContent = '⛶';
             this.fullscreenBtn.title = '退出全屏';
         } else {
@@ -673,10 +685,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = canvas.parentElement;
         const aspectRatio = 800 / 400;
         
-        if (document.fullscreenElement) {
-            // 全屏模式下的响应式调整
-            const maxHeight = window.innerHeight * 0.8;
-            const maxWidthFullscreen = window.innerWidth * 0.95;
+        if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement) {
+            // 全屏模式下的响应式调整 - 最大化游戏区域
+            const maxHeight = window.innerHeight - 50; // 为顶部单行控制按钮留出50px空间
+            const maxWidthFullscreen = window.innerWidth * 0.98;
             const targetWidth = Math.min(maxWidthFullscreen, maxHeight * aspectRatio);
             
             canvas.style.width = targetWidth + 'px';
