@@ -19,6 +19,10 @@ class PingPongGame {
         this.difficultyPreset = 'medium';
         this.initializeBalls();
         
+        this.soundEnabled = true;
+        this.audioContext = null;
+        this.setupAudioContext();
+        
         this.player = {
             x: 20,
             y: this.canvas.height / 2 - 50,
@@ -48,6 +52,13 @@ class PingPongGame {
         this.setupDifficultyControls();
         this.draw();
         this.updateScore();
+        
+        // Resume audio context on first user interaction
+        document.addEventListener('click', () => {
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+        }, { once: true });
     }
     
     setupEventListeners() {
@@ -79,6 +90,66 @@ class PingPongGame {
         });
     }
     
+    setupAudioContext() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.warn('Web Audio API not supported');
+            this.soundEnabled = false;
+        }
+    }
+    
+    playSound(frequency, duration, type = 'sine', volume = 0.1) {
+        if (!this.soundEnabled || !this.audioContext) return;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+        
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + duration);
+    }
+    
+    playHitSound() {
+        this.playSound(800, 0.1, 'square', 0.2);
+    }
+    
+    playMissSound() {
+        this.playSound(200, 0.3, 'sawtooth', 0.15);
+    }
+    
+    playWinSound() {
+        this.playSound(523, 0.2, 'sine', 0.2); // C5
+        setTimeout(() => this.playSound(659, 0.2, 'sine', 0.2), 100); // E5
+        setTimeout(() => this.playSound(784, 0.3, 'sine', 0.2), 200); // G5
+    }
+    
+    playLoseSound() {
+        this.playSound(400, 0.3, 'sawtooth', 0.2);
+        setTimeout(() => this.playSound(300, 0.4, 'sawtooth', 0.15), 100);
+    }
+    
+    playBounceSound() {
+        this.playSound(600, 0.05, 'triangle', 0.1);
+    }
+    
+    toggleSound() {
+        this.soundEnabled = !this.soundEnabled;
+        const soundBtn = document.getElementById('soundToggle');
+        if (soundBtn) {
+            soundBtn.textContent = this.soundEnabled ? '🔊' : '🔇';
+        }
+    }
+    
     setupDifficultyControls() {
         this.ballCountSelect = document.getElementById('ballCount');
         this.ballSpeedSelect = document.getElementById('ballSpeed');
@@ -97,6 +168,11 @@ class PingPongGame {
         this.difficultyPresetSelect.addEventListener('change', (e) => {
             this.setDifficultyPreset(e.target.value);
         });
+        
+        const soundBtn = document.getElementById('soundToggle');
+        if (soundBtn) {
+            soundBtn.addEventListener('click', () => this.toggleSound());
+        }
     }
 
     initializeBalls() {
@@ -238,6 +314,7 @@ class PingPongGame {
             if (ball.y - ball.radius <= 0 || 
                 ball.y + ball.radius >= this.canvas.height) {
                 ball.dy = -ball.dy;
+                this.playBounceSound();
             }
             
             if (ball.x - ball.radius <= this.player.x + this.player.width &&
@@ -247,6 +324,7 @@ class PingPongGame {
                 ball.dx = -ball.dx;
                 const hitPosition = (ball.y - this.player.y) / this.player.height;
                 ball.dy = (hitPosition - 0.5) * 8;
+                this.playHitSound();
             }
             
             if (ball.x + ball.radius >= this.ai.x &&
@@ -256,11 +334,13 @@ class PingPongGame {
                 ball.dx = -ball.dx;
                 const hitPosition = (ball.y - this.ai.y) / this.ai.height;
                 ball.dy = (hitPosition - 0.5) * 8;
+                this.playHitSound();
             }
             
             if (ball.x < 0) {
                 this.aiScore++;
                 this.updateScore();
+                this.playMissSound();
                 this.checkWin();
                 ball.x = this.canvas.width / 2 + (Math.random() - 0.5) * 200;
                 ball.y = this.canvas.height / 2 + (Math.random() - 0.5) * 100;
@@ -271,6 +351,7 @@ class PingPongGame {
             if (ball.x > this.canvas.width) {
                 this.playerScore++;
                 this.updateScore();
+                this.playMissSound();
                 this.checkWin();
                 ball.x = this.canvas.width / 2 + (Math.random() - 0.5) * 200;
                 ball.y = this.canvas.height / 2 + (Math.random() - 0.5) * 100;
@@ -283,10 +364,12 @@ class PingPongGame {
     checkWin() {
         if (this.playerScore >= 10) {
             this.gameRunning = false;
+            this.playWinSound();
             alert('恭喜你获胜！');
             this.resetGame();
         } else if (this.aiScore >= 10) {
             this.gameRunning = false;
+            this.playLoseSound();
             alert('电脑获胜！再接再厉！');
             this.resetGame();
         }
