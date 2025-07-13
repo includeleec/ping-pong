@@ -5,6 +5,9 @@ class PingPongGame {
         this.startBtn = document.getElementById('startBtn');
         this.pauseBtn = document.getElementById('pauseBtn');
         this.resetBtn = document.getElementById('resetBtn');
+        this.fullscreenBtn = document.getElementById('fullscreenBtn');
+        this.touchZone = document.getElementById('touchZone');
+        this.touchIndicator = document.querySelector('.touch-indicator');
         this.playerScoreEl = document.getElementById('player-score');
         this.aiScoreEl = document.getElementById('ai-score');
         
@@ -43,6 +46,9 @@ class PingPongGame {
         
         this.keys = {};
         this.mouseY = this.canvas.height / 2;
+        this.touchY = this.canvas.height / 2;
+        this.isMobile = this.detectMobile();
+        this.isTouch = 'ontouchstart' in window;
         
         this.init();
     }
@@ -52,6 +58,7 @@ class PingPongGame {
         this.setupDifficultyControls();
         this.draw();
         this.updateScore();
+        this.handleOrientation();
         
         // Resume audio context on first user interaction
         document.addEventListener('click', () => {
@@ -61,10 +68,54 @@ class PingPongGame {
         }, { once: true });
     }
     
+    handleOrientation() {
+        // 监听屏幕方向变化
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.adjustForOrientation(), 100);
+        });
+        
+        // 监听屏幕尺寸变化
+        window.addEventListener('resize', () => {
+            this.adjustForOrientation();
+        });
+        
+        this.adjustForOrientation();
+    }
+    
+    adjustForOrientation() {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const gameContainer = document.querySelector('.game-container');
+        
+        if (this.isMobile && isLandscape) {
+            // 手机横屏模式优化
+            gameContainer.style.height = '100vh';
+            gameContainer.style.maxWidth = '100vw';
+            gameContainer.style.borderRadius = '0';
+            
+            // 强制横屏提示（如果需要）
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(() => {
+                    console.log('无法锁定横屏模式');
+                });
+            }
+        } else if (!document.fullscreenElement) {
+            // 恢复正常模式
+            gameContainer.style.height = 'auto';
+            gameContainer.style.maxWidth = '900px';
+            gameContainer.style.borderRadius = '20px';
+        }
+    }
+    
+        detectMobile() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+               (window.innerWidth <= 768 && 'ontouchstart' in window);
+    }
+    
     setupEventListeners() {
         this.startBtn.addEventListener('click', () => this.startGame());
         this.pauseBtn.addEventListener('click', () => this.pauseGame());
         this.resetBtn.addEventListener('click', () => this.resetGame());
+        this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
         
         document.addEventListener('keydown', (e) => {
             this.keys[e.key] = true;
@@ -74,7 +125,9 @@ class PingPongGame {
             this.keys[e.key] = false;
         });
         
+        // 鼠标控制
         this.canvas.addEventListener('mousemove', (e) => {
+            if (this.isTouch) return; // 触摸设备忽略鼠标
             const rect = this.canvas.getBoundingClientRect();
             this.mouseY = e.clientY - rect.top;
             if (this.gameRunning && !this.gamePaused) {
@@ -83,11 +136,49 @@ class PingPongGame {
             }
         });
         
+        // 触摸控制
+        if (this.isTouch || this.isMobile) {
+            this.setupTouchControls();
+        }
+        
         this.canvas.addEventListener('click', () => {
             if (!this.gameRunning) {
                 this.startGame();
             }
         });
+        
+        // 监听全屏变化
+        document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
+    }
+    
+    setupTouchControls() {
+        const handleTouch = (e) => {
+            e.preventDefault();
+            if (!this.gameRunning || this.gamePaused) return;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const touch = e.touches[0] || e.changedTouches[0];
+            this.touchY = touch.clientY - rect.top;
+            this.player.y = this.touchY - this.player.height / 2;
+            this.player.y = Math.max(0, Math.min(this.canvas.height - this.player.height, this.player.y));
+            
+            // 更新触摸指示器
+            if (this.touchIndicator) {
+                this.touchIndicator.style.left = '20px';
+                this.touchIndicator.style.top = this.touchY + 'px';
+                this.touchIndicator.classList.add('active');
+            }
+        };
+        
+        const handleTouchEnd = () => {
+            if (this.touchIndicator) {
+                this.touchIndicator.classList.remove('active');
+            }
+        };
+        
+        this.touchZone.addEventListener('touchstart', handleTouch, { passive: false });
+        this.touchZone.addEventListener('touchmove', handleTouch, { passive: false });
+        this.touchZone.addEventListener('touchend', handleTouchEnd, { passive: false });
     }
     
     setupAudioContext() {
@@ -270,11 +361,55 @@ class PingPongGame {
     }
     
     handleInput() {
-        if (this.keys['ArrowUp'] && this.player.y > 0) {
-            this.player.y -= this.player.speed;
+        if (this.isTouch || this.isMobile) {
+            // 触摸设备使用触摸控制
+            this.player.y = Math.max(0, Math.min(this.canvas.height - this.player.height, this.player.y));
+        } else {
+            // 键盘控制
+            if (this.keys['ArrowUp'] && this.player.y > 0) {
+                this.player.y -= this.player.speed;
+            }
+            if (this.keys['ArrowDown'] && this.player.y < this.canvas.height - this.player.height) {
+                this.player.y += this.player.speed;
+            }
+            
+            // 鼠标控制（非触摸设备）
+            if (!this.isTouch && this.gameRunning && !this.gamePaused) {
+                this.player.y = this.mouseY - this.player.height / 2;
+                this.player.y = Math.max(0, Math.min(this.canvas.height - this.player.height, this.player.y));
+            }
         }
-        if (this.keys['ArrowDown'] && this.player.y < this.canvas.height - this.player.height) {
-            this.player.y += this.player.speed;
+    }
+    
+    toggleFullscreen() {
+        const gameContainer = document.querySelector('.game-container');
+        
+        if (!document.fullscreenElement) {
+            if (gameContainer.requestFullscreen) {
+                gameContainer.requestFullscreen();
+            } else if (gameContainer.webkitRequestFullscreen) {
+                gameContainer.webkitRequestFullscreen();
+            } else if (gameContainer.msRequestFullscreen) {
+                gameContainer.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    }
+    
+    handleFullscreenChange() {
+        if (document.fullscreenElement) {
+            this.fullscreenBtn.textContent = '⛶';
+            this.fullscreenBtn.title = '退出全屏';
+        } else {
+            this.fullscreenBtn.textContent = '⛶';
+            this.fullscreenBtn.title = '全屏模式';
         }
     }
     
@@ -365,14 +500,71 @@ class PingPongGame {
         if (this.playerScore >= 10) {
             this.gameRunning = false;
             this.playWinSound();
-            alert('恭喜你获胜！');
-            this.resetGame();
+            this.showConfetti();
+            setTimeout(() => {
+                alert('恭喜你获胜！');
+                this.resetGame();
+            }, 2000);
         } else if (this.aiScore >= 10) {
             this.gameRunning = false;
             this.playLoseSound();
-            alert('电脑获胜！再接再厉！');
-            this.resetGame();
+            setTimeout(() => {
+                alert('电脑获胜！再接再厉！');
+                this.resetGame();
+            }, 1000);
         }
+    }
+
+    showConfetti() {
+        this.confetti = [];
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff69b4', '#ffa500'];
+        
+        for (let i = 0; i < 100; i++) {
+            this.confetti.push({
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height - this.canvas.height,
+                vx: (Math.random() - 0.5) * 8,
+                vy: Math.random() * 3 + 2,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: Math.random() * 4 + 2,
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 10
+            });
+        }
+        
+        this.animateConfetti();
+    }
+
+    animateConfetti() {
+        if (!this.confetti || this.confetti.length === 0) return;
+        
+        this.confetti.forEach((particle, index) => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vy += 0.1; // gravity
+            particle.rotation += particle.rotationSpeed;
+            
+            if (particle.y > this.canvas.height) {
+                this.confetti.splice(index, 1);
+            }
+        });
+        
+        if (this.confetti.length > 0) {
+            requestAnimationFrame(() => this.animateConfetti());
+        }
+    }
+
+    drawConfetti() {
+        if (!this.confetti) return;
+        
+        this.confetti.forEach(particle => {
+            this.ctx.save();
+            this.ctx.translate(particle.x, particle.y);
+            this.ctx.rotate(particle.rotation * Math.PI / 180);
+            this.ctx.fillStyle = particle.color;
+            this.ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
+            this.ctx.restore();
+        });
     }
     
     draw() {
@@ -383,6 +575,7 @@ class PingPongGame {
         this.drawPaddle(this.player);
         this.drawPaddle(this.ai);
         this.drawBalls();
+        this.drawConfetti();
         
         if (!this.gameRunning && !this.gamePaused) {
             this.drawStartMessage();
@@ -441,10 +634,16 @@ class PingPongGame {
         this.ctx.fillStyle = 'white';
         this.ctx.font = 'bold 24px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('点击开始游戏或按空格键', this.canvas.width / 2, this.canvas.height / 2);
+        this.ctx.fillText('点击开始游戏或按空格键', this.canvas.width / 2, this.canvas.height / 2 - 10);
         
+        let controlText = this.isMobile ? '触摸屏幕控制球拍' : '使用鼠标或↑↓键控制球拍';
         this.ctx.font = '16px Arial';
-        this.ctx.fillText('使用鼠标或↑↓键控制球拍', this.canvas.width / 2, this.canvas.height / 2 + 30);
+        this.ctx.fillText(controlText, this.canvas.width / 2, this.canvas.height / 2 + 20);
+        
+        if (this.isMobile) {
+            this.ctx.font = '14px Arial';
+            this.ctx.fillText('上下滑动控制球拍移动', this.canvas.width / 2, this.canvas.height / 2 + 40);
+        }
     }
     
     gameLoop() {
@@ -472,10 +671,19 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => {
         const canvas = document.getElementById('gameCanvas');
         const container = canvas.parentElement;
-        const maxWidth = Math.min(container.clientWidth - 80, 800);
         const aspectRatio = 800 / 400;
         
-        if (maxWidth < 800) {
+        if (document.fullscreenElement) {
+            // 全屏模式下的响应式调整
+            const maxHeight = window.innerHeight * 0.8;
+            const maxWidthFullscreen = window.innerWidth * 0.95;
+            const targetWidth = Math.min(maxWidthFullscreen, maxHeight * aspectRatio);
+            
+            canvas.style.width = targetWidth + 'px';
+            canvas.style.height = (targetWidth / aspectRatio) + 'px';
+        } else if (window.innerWidth <= 768) {
+            // 移动设备响应式调整
+            const maxWidth = Math.min(container.clientWidth - 20, window.innerWidth - 20);
             canvas.style.width = maxWidth + 'px';
             canvas.style.height = (maxWidth / aspectRatio) + 'px';
         } else {

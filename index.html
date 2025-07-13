@@ -9,7 +9,10 @@
 <body>
     <div class="game-container">
         <div class="game-header">
-            <h1>乒乓球游戏</h1>
+            <div class="header-top">
+                <h1>乒乓球游戏</h1>
+                <button id="fullscreenBtn" class="btn fullscreen-btn" title="全屏模式">⛶</button>
+            </div>
             <div class="score-board">
                 <div class="player-score">
                     <span class="player-name">玩家</span>
@@ -23,7 +26,14 @@
         </div>
         
         <div class="game-area">
-            <canvas id="gameCanvas" width="800" height="400"></canvas>
+            <div class="canvas-container">
+                <canvas id="gameCanvas" width="800" height="400"></canvas>
+                <div class="mobile-controls">
+                    <div class="touch-zone" id="touchZone">
+                        <div class="touch-indicator"></div>
+                    </div>
+                </div>
+            </div>
             <div class="game-controls">
                 <button id="startBtn" class="btn">开始游戏</button>
                 <button id="pauseBtn" class="btn">暂停</button>
